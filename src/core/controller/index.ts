@@ -11,6 +11,7 @@ import { downloadTask } from "@integrations/misc/export-markdown"
 import WorkspaceTracker from "@integrations/workspace/WorkspaceTracker"
 import { ClineAccountService } from "@services/account/ClineAccountService"
 import { McpHub } from "@services/mcp/McpHub"
+import { LoggerService } from "@services/logging/LoggerService"
 import { ApiProvider, ModelInfo } from "@shared/api"
 import { ChatContent } from "@shared/ChatContent"
 import { ChatSettings, Mode, StoredChatSettings } from "@shared/ChatSettings"
@@ -53,7 +54,7 @@ export class Controller {
 	mcpHub: McpHub
 	accountService: ClineAccountService
 	authService: AuthService
-	isLogging: boolean = false
+	logger: LoggerService
 	get latestAnnouncementId(): string {
 		return this.context.extension?.packageJSON?.version?.split(".").slice(0, 2).join(".") ?? ""
 	}
@@ -78,6 +79,7 @@ export class Controller {
 		this.accountService = ClineAccountService.getInstance()
 		this.authService = AuthService.getInstance(context)
 		this.authService.restoreRefreshTokenAndRetrieveAuthInfo()
+		this.logger = LoggerService.getInstance()
 
 		// Clean up legacy checkpoints
 		cleanupLegacyCheckpoints(this.context.globalStorageUri.fsPath, this.outputChannel).catch((error) => {
@@ -86,7 +88,7 @@ export class Controller {
 	}
 
 	async setLogging(enabled: boolean) {
-		this.isLogging = enabled
+		this.logger.setLogging(enabled)
 		await this.postStateToWebview()
 	}
 
@@ -753,7 +755,7 @@ export class Controller {
 		return {
 			version: this.context.extension?.packageJSON?.version ?? "",
 			apiConfiguration,
-			isLogging: this.isLogging,
+			isLogging: this.logger.isLogging(),
 			uriScheme: vscode.env.uriScheme,
 			currentTaskItem: this.task?.taskId ? (taskHistory || []).find((item) => item.id === this.task?.taskId) : undefined,
 			checkpointTrackerErrorMessage: this.task?.taskState.checkpointTrackerErrorMessage,
