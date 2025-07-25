@@ -206,6 +206,18 @@
 				"command": "cline.openWalkthrough",
 				"title": "Open Walkthrough",
 				"category": "Cline"
+			},
+			{
+				"command": "cline.startLocalLogServer",
+				"title": "Start Local Log Server",
+				"category": "Cline",
+				"when": "cline.isDevMode"
+			},
+			{
+				"command": "cline.stopLocalLogServer",
+				"title": "Stop Local Log Server",
+				"category": "Cline",
+				"when": "cline.isDevMode"
 			}
 		],
 		"keybindings": [

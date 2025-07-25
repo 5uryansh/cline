@@ -12,6 +12,7 @@ import WorkspaceTracker from "@integrations/workspace/WorkspaceTracker"
 import { ClineAccountService } from "@services/account/ClineAccountService"
 import { McpHub } from "@services/mcp/McpHub"
 import { LoggerService } from "@services/logging/LoggerService"
+import { LogPushService } from "@services/logging/LogPushService"
 import { ApiProvider, ModelInfo } from "@shared/api"
 import { ChatContent } from "@shared/ChatContent"
 import { ChatSettings, Mode, StoredChatSettings } from "@shared/ChatSettings"
@@ -55,6 +56,7 @@ export class Controller {
 	accountService: ClineAccountService
 	authService: AuthService
 	logger: LoggerService
+	logPushService: LogPushService
 	get latestAnnouncementId(): string {
 		return this.context.extension?.packageJSON?.version?.split(".").slice(0, 2).join(".") ?? ""
 	}
@@ -80,6 +82,8 @@ export class Controller {
 		this.authService = AuthService.getInstance(context)
 		this.authService.restoreRefreshTokenAndRetrieveAuthInfo()
 		this.logger = LoggerService.getInstance()
+		this.logPushService = LogPushService.getInstance()
+		this.logPushService.start()
 
 		// Clean up legacy checkpoints
 		cleanupLegacyCheckpoints(this.context.globalStorageUri.fsPath, this.outputChannel).catch((error) => {
@@ -111,6 +115,7 @@ export class Controller {
 		}
 		this.workspaceTracker.dispose()
 		this.mcpHub.dispose()
+		this.logPushService.stop()
 
 		console.error("Controller disposed")
 	}
