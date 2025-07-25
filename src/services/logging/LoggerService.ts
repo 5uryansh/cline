@@ -94,22 +94,22 @@ export class LoggerService {
 	}
 
 	public logSession(taskId: string, data: SessionEvent): void {
-		this.log({ taskId, eventType: "session", data })
+		this.log({ taskId, conversationId: taskId, eventType: "session", data })
 	}
 
 	public logMessage(taskId: string, data: MessageEvent): void {
-		this.log({ taskId, eventType: "message", data })
+		this.log({ taskId, conversationId: taskId, eventType: "message", data })
 	}
 
 	public logTool(taskId: string, data: ToolEvent): void {
-		this.log({ taskId, eventType: "tool", data })
+		this.log({ taskId, conversationId: taskId, eventType: "tool", data })
 	}
 
 	public logSystem(taskId: string, data: SystemEvent): void {
-		this.log({ taskId, eventType: "system", data })
+		this.log({ taskId, conversationId: taskId, eventType: "system", data })
 	}
 
 	public logError(taskId: string, data: ErrorEvent): void {
-		this.log({ taskId, eventType: "error", data })
+		this.log({ taskId, conversationId: taskId, eventType: "error", data })
 	}
 }

@@ -1,6 +1,7 @@
 export interface LogEvent {
 	taskId: string
 	timestamp: number
+	conversationId: string
 	eventType: "session" | "message" | "tool" | "system" | "error"
 	data: SessionEvent | MessageEvent | ToolEvent | SystemEvent | ErrorEvent
 	// System metadata at event level
