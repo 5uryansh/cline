@@ -1,6 +1,7 @@
 import * as vscode from "vscode"
 import * as fs from "fs"
 import * as path from "path"
+import * as os from "os"
 import { LogEvent } from "./types"
 
 const QUEUE_PERSISTENCE_KEY = "loggingQueue"
@@ -12,14 +13,16 @@ export class LoggingQueue {
 
 	constructor(context: vscode.ExtensionContext) {
 		this.context = context
-		this.logFilePath = path.join(this.context.globalStorageUri.fsPath, "cline.log")
+		const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || os.homedir()
+		this.logFilePath = path.join(workspacePath, "cline.log")
 		this.ensureLogFileExists()
 	}
 
 	private ensureLogFileExists(): void {
 		try {
-			if (!fs.existsSync(this.context.globalStorageUri.fsPath)) {
-				fs.mkdirSync(this.context.globalStorageUri.fsPath, { recursive: true })
+			const dir = path.dirname(this.logFilePath)
+			if (!fs.existsSync(dir)) {
+				fs.mkdirSync(dir, { recursive: true })
 			}
 			if (!fs.existsSync(this.logFilePath)) {
 				fs.writeFileSync(this.logFilePath, "")
