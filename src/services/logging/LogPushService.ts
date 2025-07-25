@@ -1,26 +1,21 @@
-import * as fs from "fs/promises"
-import * as path from "path"
-import * as os from "os"
-import * as vscode from "vscode"
 import axios from "axios"
 import { LogEvent } from "./types"
+import { LoggingQueue } from "./LoggingQueue"
 
 export class LogPushService {
 	private static instance: LogPushService
-	private logFilePath: string
-	private pushUrl = "https://analytics.xyne.juspay.in/logs"
+	private pushUrl = "https://analytics.xyne.juspay.in/cline-logs"
 	private isRunning = false
-	private lastPosition = 0
 	private timer: NodeJS.Timeout | undefined
+	private queue: LoggingQueue
 
-	private constructor() {
-		const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
-		this.logFilePath = path.join(workspacePath || os.homedir(), "cline.log")
+	private constructor(queue: LoggingQueue) {
+		this.queue = queue
 	}
 
-	public static getInstance(): LogPushService {
+	public static getInstance(queue: LoggingQueue): LogPushService {
 		if (!LogPushService.instance) {
-			LogPushService.instance = new LogPushService()
+			LogPushService.instance = new LogPushService(queue)
 		}
 		return LogPushService.instance
 	}
@@ -45,33 +40,23 @@ export class LogPushService {
 	}
 
 	private async pushLogs() {
+		const batch = this.queue.peek(10) // Peek at up to 10 events
+		if (batch.length === 0) {
+			return
+		}
+
+		console.log(`Attempting to push ${batch.length} log events.`)
+
 		try {
-			const stats = await fs.stat(this.logFilePath)
-			if (stats.size > this.lastPosition) {
-				const stream = await fs.open(this.logFilePath, "r")
-				const buffer = Buffer.alloc(stats.size - this.lastPosition)
-				await stream.read(buffer, 0, buffer.length, this.lastPosition)
-				await stream.close()
-
-				const newContent = buffer.toString("utf-8")
-				const logEntries = newContent.split("\n").filter((line) => line.trim() !== "")
-
-				for (const entry of logEntries) {
-					try {
-						const logEvent: LogEvent = JSON.parse(entry)
-						await axios.post(this.pushUrl, logEvent, {
-							headers: { "Content-Type": "application/json" },
-						})
-					} catch (error) {
-						console.error("Failed to parse or push log entry:", error)
-					}
-				}
-				this.lastPosition = stats.size
-			}
+			await axios.post(this.pushUrl, batch, {
+				headers: { "Content-Type": "application/json" },
+			})
+			console.log(`Successfully pushed ${batch.length} log events.`)
+			// If push is successful, dequeue the batch
+			this.queue.dequeue(batch.length)
 		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-				console.error("Error reading log file:", error)
-			}
+			console.error("Failed to push log batch:", error)
+			// Do not re-queue, the batch is still in the queue because we only peeked
 		}
 	}
 }

@@ -1,28 +1,28 @@
-import * as fs from "fs/promises"
-import * as path from "path"
 import * as os from "os"
 import * as vscode from "vscode"
 import { LogEvent, SessionEvent, MessageEvent, ToolEvent, SystemEvent, ErrorEvent } from "./types"
 import { getGitRemoteUrls } from "../../utils/git"
 import { exec } from "child_process"
 import { promisify } from "util"
+import { LoggingQueue } from "./LoggingQueue"
+import path from "path"
 
 const execAsync = promisify(exec)
 
 export class LoggerService {
 	private static instance: LoggerService
-	private logFilePath: string
 	private isLoggingEnabled: boolean = false
 	private workspacePath: string | undefined
+	private queue: LoggingQueue
 
-	private constructor() {
+	private constructor(queue: LoggingQueue) {
 		this.workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
-		this.logFilePath = path.join(this.workspacePath || os.homedir(), "cline.log")
+		this.queue = queue
 	}
 
-	public static getInstance(): LoggerService {
+	public static getInstance(queue: LoggingQueue): LoggerService {
 		if (!LoggerService.instance) {
-			LoggerService.instance = new LoggerService()
+			LoggerService.instance = new LoggerService(queue)
 		}
 		return LoggerService.instance
 	}
@@ -90,11 +90,7 @@ export class LoggerService {
 			systemMetadata: await this.getSystemMetadata(),
 		}
 
-		try {
-			await fs.appendFile(this.logFilePath, JSON.stringify(logEvent) + "\n")
-		} catch (error) {
-			console.error("Failed to write to log file:", error)
-		}
+		await this.queue.enqueue(logEvent)
 	}
 
 	public logSession(taskId: string, data: SessionEvent): void {

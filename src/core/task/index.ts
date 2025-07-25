@@ -138,6 +138,7 @@ export class Task {
 
 	// Message and conversation state
 	messageStateHandler: MessageStateHandler
+	logger: LoggerService
 	constructor(
 		controller: Controller,
 		context: vscode.ExtensionContext,
@@ -194,6 +195,7 @@ export class Task {
 		this.chatSettings = chatSettings
 		this.enableCheckpoints = enableCheckpointsSetting
 		this.cwd = cwd
+		this.logger = controller.logger
 
 		this.mcpHub.setNotificationCallback(async (serverName: string, level: string, message: string) => {
 			await this.say("mcp_notification", `[${serverName}] ${message}`)
@@ -774,8 +776,7 @@ export class Task {
 	}
 
 	private logMessage(message: string, type: "user" | "assistant" | "system" | "error" | "terminal" = "system") {
-		const logger = LoggerService.getInstance()
-		logger.logMessage(this.taskId, {
+		this.logger.logMessage(this.taskId, {
 			conversationId: this.taskId,
 			messageId: Date.now().toString(),
 			messageType: type,

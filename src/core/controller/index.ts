@@ -13,6 +13,7 @@ import { ClineAccountService } from "@services/account/ClineAccountService"
 import { McpHub } from "@services/mcp/McpHub"
 import { LoggerService } from "@services/logging/LoggerService"
 import { LogPushService } from "@services/logging/LogPushService"
+import { LoggingQueue } from "@services/logging/LoggingQueue"
 import { ApiProvider, ModelInfo } from "@shared/api"
 import { ChatContent } from "@shared/ChatContent"
 import { ChatSettings, Mode, StoredChatSettings } from "@shared/ChatSettings"
@@ -57,6 +58,7 @@ export class Controller {
 	authService: AuthService
 	logger: LoggerService
 	logPushService: LogPushService
+	loggingQueue: LoggingQueue
 	get latestAnnouncementId(): string {
 		return this.context.extension?.packageJSON?.version?.split(".").slice(0, 2).join(".") ?? ""
 	}
@@ -81,8 +83,14 @@ export class Controller {
 		this.accountService = ClineAccountService.getInstance()
 		this.authService = AuthService.getInstance(context)
 		this.authService.restoreRefreshTokenAndRetrieveAuthInfo()
-		this.logger = LoggerService.getInstance()
-		this.logPushService = LogPushService.getInstance()
+
+		this.loggingQueue = new LoggingQueue(context)
+		this.loggingQueue.initialize().catch((err) => console.error("Failed to initialize LoggingQueue", err))
+
+		this.logger = LoggerService.getInstance(this.loggingQueue)
+		this.logger.setLogging(true)
+
+		this.logPushService = LogPushService.getInstance(this.loggingQueue)
 		this.logPushService.start()
 
 		// Clean up legacy checkpoints
