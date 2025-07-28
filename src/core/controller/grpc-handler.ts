@@ -1,6 +1,8 @@
 import { Controller } from "./index"
 import { serviceHandlers } from "@generated/hosts/vscode/protobus-services"
 import { GrpcRequestRegistry } from "./grpc-request-registry"
+import { getTestClientSocket } from "@services/test/TestServer"
+import { ClineMessage } from "@shared/ExtensionMessage"
 
 /**
  * Type definition for a streaming response handler
@@ -74,6 +76,19 @@ export class GrpcHandler {
 			isLast: boolean = false,
 			sequenceNumber?: number,
 		) => {
+			// Intercept messages for the test runner
+			const testSocket = getTestClientSocket()
+			if (testSocket) {
+				const message = response as ClineMessage
+				if (message.type === "ask") {
+					testSocket.send(JSON.stringify({ type: "ask", payload: message }))
+				} else if (message.type === "say" && message.say === "completion_result") {
+					testSocket.send(JSON.stringify({ type: "completion_result", payload: message }))
+				} else if (message.type === "say" && (message.say === "text" || message.say === "reasoning")) {
+					testSocket.send(JSON.stringify({ type: "say", payload: message }))
+				}
+			}
+
 			await this.controller.postMessageToWebview({
 				type: "grpc_response",
 				grpc_response: {

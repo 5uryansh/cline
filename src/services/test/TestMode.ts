@@ -9,6 +9,7 @@ import * as path from "path"
 import { Logger } from "../logging/Logger"
 import { createTestServer, shutdownTestServer } from "./TestServer"
 import { HostProvider } from "@/hosts/host-provider"
+import chalk from "chalk"
 
 // State variable
 let isTestMode = false
@@ -35,15 +36,18 @@ export function isInTestMode(): boolean {
 async function checkForTestMode(): Promise<boolean> {
 	// Get all workspace folders
 	const workspaceFolders = await HostProvider.workspace.getWorkspacePaths({})
+	Logger.log(chalk.blue(`[TestMode.ts] Checking for test mode. Found ${workspaceFolders.paths.length} workspace folders.`))
+	workspaceFolders.paths.forEach((p, i) => Logger.log(chalk.blue(`  [TestMode.ts] Workspace ${i}: ${p}`)))
 
 	// Check each workspace folder for an evals.env file
 	for (const folder of workspaceFolders.paths) {
 		const evalsEnvPath = path.join(folder, "evals.env")
 		if (fs.existsSync(evalsEnvPath)) {
-			Logger.log(`Found evals.env file at ${evalsEnvPath}, activating test mode`)
+			Logger.log(chalk.green(`[TestMode.ts] Found evals.env file at ${evalsEnvPath}, activating test mode.`))
 			return true
 		}
 	}
+	Logger.log(chalk.yellow("[TestMode.ts] No evals.env file found in workspace folders. Test mode not activated."))
 
 	return false
 }
@@ -60,12 +64,14 @@ export async function initializeTestMode(webviewProvider?: any): Promise<vscode.
 
 	// Set test mode state for other parts of the code
 	if (IS_TEST) {
-		Logger.log("Test mode detected: Setting test mode state to true")
+		Logger.log(chalk.green("[TestMode.ts] Test mode detected. Setting up test server..."))
 		setTestMode(true)
 		vscode.commands.executeCommand("setContext", "cline.isTestMode", true)
 
 		// Set up test server if in test mode
 		createTestServer(webviewProvider)
+	} else {
+		Logger.log(chalk.yellow("[TestMode.ts] Not in test mode. Test server will not be started."))
 	}
 
 	// Watch for evals.env files being added or removed
