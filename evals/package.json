@@ -3,8 +3,13 @@
   "version": "0.1.0",
   "description": "Evaluation scripts and tools for Cline",
   "main": "cli/dist/index.js",
+  "bin": {
+    "cline-eval": "cli/dist/index.js",
+    "cline-custom-runner": "custom-runner/dist/index.js"
+  },
   "scripts": {
     "build:cli": "cd cli && tsc",
+    "build:custom-runner": "cd custom-runner && tsc",
     "start:cli": "cd cli && node dist/index.js",
     "dev:cli": "cd cli && ts-node src/index.ts",
     "diff-eval": "./diff-edits/run_and_open_dashboard.sh",
@@ -30,7 +35,8 @@
     "sqlite": "^4.1.2",
     "tiktoken": "^1.0.21",
     "uuid": "^9.0.0",
-    "yargs": "^17.6.2"
+    "yargs": "^17.6.2",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.3",
