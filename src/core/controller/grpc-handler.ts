@@ -2,7 +2,7 @@ import { Controller } from "./index"
 import { serviceHandlers } from "@generated/hosts/vscode/protobus-services"
 import { GrpcRequestRegistry } from "./grpc-request-registry"
 import { getTestClientSocket } from "@services/test/TestServer"
-import { ClineMessage } from "@shared/ExtensionMessage"
+import { ClineMessage, ClineSay } from "@shared/ExtensionMessage"
 
 /**
  * Type definition for a streaming response handler
@@ -80,12 +80,28 @@ export class GrpcHandler {
 			const testSocket = getTestClientSocket()
 			if (testSocket) {
 				const message = response as ClineMessage
-				if (message.type === "ask") {
-					testSocket.send(JSON.stringify({ type: "ask", payload: message }))
-				} else if (message.type === "say" && message.say === "completion_result") {
-					testSocket.send(JSON.stringify({ type: "completion_result", payload: message }))
-				} else if (message.type === "say" && (message.say === "text" || message.say === "reasoning")) {
-					testSocket.send(JSON.stringify({ type: "say", payload: message }))
+
+				// Only process complete messages
+				if (message.partial === false) {
+					// The 'say' property can be a number (enum index) from gRPC, so we handle it as such.
+					const sayAsNumber = Number(message.say)
+					const SAY_TEXT_AS_NUM = 4 // Corresponds to 'text'
+					const SAY_COMPLETION_RESULT_AS_NUM = 6 // Corresponds to 'completion_result'
+
+					if (sayAsNumber === SAY_TEXT_AS_NUM && message.text && message.text.includes('"question"')) {
+						try {
+							const questionPayload = JSON.parse(message.text)
+							testSocket.send(JSON.stringify({ type: "ask", payload: questionPayload }))
+						} catch (e) {
+							// Fallback for non-JSON text
+							testSocket.send(JSON.stringify({ type: "say", payload: message }))
+						}
+					} else if (sayAsNumber === SAY_COMPLETION_RESULT_AS_NUM) {
+						testSocket.send(JSON.stringify({ type: "completion", payload: message }))
+					} else {
+						// Forward other message types as a generic 'say' event
+						testSocket.send(JSON.stringify({ type: "say", payload: message }))
+					}
 				}
 			}
 

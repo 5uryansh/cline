@@ -291,7 +291,7 @@ async function handleStartTask(payload: any) {
 	try {
 		const workspacePath = await getCwd()
 		await validateWorkspacePath(workspacePath)
-		await initializeGitRepository(workspacePath)
+		// await initializeGitRepository(workspacePath)
 		await visibleWebview.controller.clearTask()
 
 		if (apiKey && model && provider) {
