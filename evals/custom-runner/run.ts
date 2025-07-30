@@ -5,6 +5,7 @@ import { runTaskWithWebSocket } from "./task";
 interface CustomRunOptions {
     prompt: string;
     repoPath: string;
+    fast?: boolean;
     apiKey?: string;
     model?: string;
     provider?: string;
@@ -27,6 +28,8 @@ export async function customRunHandler(options: CustomRunOptions): Promise<void>
             apiKey: options.apiKey,
             model: options.model,
             provider: options.provider,
+            fast: options.fast,
+            repoPath: options.repoPath,
         });
 
         console.log(chalk.green("\n✅ Custom run finished successfully!"));

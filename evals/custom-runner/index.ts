@@ -15,6 +15,7 @@ program
     .description("Run a single task evaluation")
     .requiredOption("-p, --prompt <prompt>", "The prompt for the task")
     .requiredOption("-r, --repo-path <repoPath>", "The local path to the repository")
+    .option("--fast", "Enable fast mode to commit and push changes automatically after the task is complete.", false)
     .option("-k, --api-key <apiKey>", "API key for the provider")
     .option("-m, --model <model>", "The model to use")
     .option("--provider <provider>", "The API provider to use (e.g., 'anthropic', 'openai')")
