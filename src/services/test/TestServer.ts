@@ -107,7 +107,7 @@ async function updateAutoApprovalSettings(context: vscode.ExtensionContext, prov
 
 		// Enable all actions
 		const updatedSettings: AutoApprovalSettings = {
-			...autoApprovalSettings,
+			version: (autoApprovalSettings?.version || 0) + 1,
 			enabled: true,
 			actions: {
 				readFiles: true,
@@ -119,18 +119,23 @@ async function updateAutoApprovalSettings(context: vscode.ExtensionContext, prov
 				useBrowser: true,
 				useMcp: true,
 			},
-			maxRequests: 10000, // Increase max requests for tests
+			maxRequests: 10000,
+			enableNotifications: true,
+			favorites: [],
 		}
 
 		await updateGlobalState(context, "autoApprovalSettings", updatedSettings)
-		Logger.log("Auto approval settings updated for test mode")
+		Logger.log(chalk.blue("Auto approval settings updated for test mode"))
 
 		// Update the webview with the new state
 		if (provider?.controller) {
+			console.log("provider found")
 			await provider.controller.postStateToWebview()
+		} else {
+			console.log("provider not found")
 		}
 	} catch (error) {
-		Logger.log(`Error updating auto approval settings: ${error}`)
+		Logger.log(chalk.red(`Error updating auto approval settings: ${error}`))
 	}
 }
 
@@ -142,15 +147,16 @@ async function updateAutoApprovalSettings(context: vscode.ExtensionContext, prov
  */
 export function createTestServer(webviewProvider?: WebviewProvider): http.Server {
 	// Try to show the Cline sidebar
-	Logger.log("[createTestServer] Opening Cline in sidebar...")
-	vscode.commands.executeCommand("workbench.view.claude-dev-ActivityBar")
-
+	Logger.log(chalk.blue("[createTestServer] Opening Cline in sidebar..."))
 	// Then ensure the webview is focused/loaded
 	vscode.commands.executeCommand("claude-dev.SidebarProvider.focus")
 
 	// Update auto approval settings if webviewProvider is available
 	if (webviewProvider?.controller?.context) {
+		console.log(chalk.blue("[createTestServer] updating auto approval"))
 		updateAutoApprovalSettings(webviewProvider.controller.context, webviewProvider)
+	} else {
+		console.log(chalk.blue("[createTestServer] not updating auto approval"))
 	}
 	const PORT = 9876
 
@@ -180,7 +186,7 @@ export function createTestServer(webviewProvider?: WebviewProvider): http.Server
 					shutdownTestServer()
 				}
 			} catch (error) {
-				Logger.log(`Error processing message: ${error}`)
+				Logger.log(chalk.red(`Error processing message: ${error}`))
 				if (clientSocket) {
 					clientSocket.send(JSON.stringify({ type: "error", payload: { message: `Invalid message format: ${error}` } }))
 				}
@@ -205,7 +211,7 @@ export function createTestServer(webviewProvider?: WebviewProvider): http.Server
 		if (visibleWebview) {
 			messageCatcherDisposable = createMessageCatcher(visibleWebview)
 		} else {
-			Logger.log("No visible webview instance found for message catcher")
+			Logger.log(chalk.yellow("No visible webview instance found for message catcher"))
 		}
 	}
 
@@ -219,7 +225,7 @@ export function createTestServer(webviewProvider?: WebviewProvider): http.Server
  * @returns A disposable that can be used to clean up the message catcher
  */
 export function createMessageCatcher(webviewProvider: WebviewProvider): vscode.Disposable {
-	Logger.log("Cline message catcher registered")
+	Logger.log(chalk.blue("Cline message catcher registered"))
 
 	if (webviewProvider && webviewProvider.controller) {
 		const originalPostMessageToWebview = webviewProvider.controller.postMessageToWebview
@@ -232,12 +238,12 @@ export function createMessageCatcher(webviewProvider: WebviewProvider): vscode.D
 			return originalPostMessageToWebview.call(webviewProvider.controller, message)
 		}
 	} else {
-		Logger.log("No visible webview instance found for message catcher")
+		Logger.log(chalk.yellow("No visible webview instance found for message catcher"))
 	}
 
 	return new vscode.Disposable(() => {
 		// Cleanup function if needed
-		Logger.log("Cline message catcher disposed")
+		Logger.log(chalk.blue("Cline message catcher disposed"))
 	})
 }
 
@@ -247,7 +253,7 @@ export function createMessageCatcher(webviewProvider: WebviewProvider): vscode.D
 export function shutdownTestServer() {
 	if (server) {
 		server.close(() => {
-			Logger.log("Test server shut down.")
+			Logger.log(chalk.blue("Test server shut down."))
 		})
 		server = undefined
 		wss = undefined
@@ -269,7 +275,7 @@ export function getTestClientSocket(): WebSocket | undefined {
 }
 
 async function handleStartTask(payload: any) {
-	const { task, apiKey, model, provider } = payload
+	const { task, apiKey, model, provider, vertexRegion } = payload
 
 	if (!task) {
 		if (clientSocket) {
@@ -286,58 +292,77 @@ async function handleStartTask(payload: any) {
 		return
 	}
 
-	Logger.log(`Test server initiating task: ${task}`)
+	Logger.log(chalk.cyan(`Test server initiating task: ${task}`))
 
 	try {
 		const workspacePath = await getCwd()
 		await validateWorkspacePath(workspacePath)
 		// await initializeGitRepository(workspacePath)
 		await visibleWebview.controller.clearTask()
+		await updateAutoApprovalSettings(visibleWebview.controller.context, visibleWebview)
 
 		if (apiKey && model && provider) {
-			Logger.log(`Updating API configuration for provider: ${provider}, model: ${model}`)
+			Logger.log(chalk.blue(`Updating API configuration for provider: ${provider}, model: ${model}`))
 			const typedProvider = provider as ApiProvider
-			const providerToSecretKey: Partial<Record<ApiProvider, SecretKey>> = {
-				anthropic: "apiKey",
-				openrouter: "openRouterApiKey",
-				openai: "openAiApiKey",
-				gemini: "geminiApiKey",
-				"openai-native": "openAiNativeApiKey",
-				deepseek: "deepSeekApiKey",
-				requesty: "requestyApiKey",
-				together: "togetherApiKey",
-				fireworks: "fireworksApiKey",
-				qwen: "qwenApiKey",
-				doubao: "doubaoApiKey",
-				mistral: "mistralApiKey",
-				litellm: "liteLlmApiKey",
-				asksage: "asksageApiKey",
-				xai: "xaiApiKey",
-				moonshot: "moonshotApiKey",
-				huggingface: "huggingFaceApiKey",
-				nebius: "nebiusApiKey",
-				sambanova: "sambanovaApiKey",
-				cerebras: "cerebrasApiKey",
-				groq: "groqApiKey",
-				bedrock: "awsBedrockApiKey",
-				cline: "clineAccountId",
-			}
-			const secretKey = providerToSecretKey[typedProvider]
-			if (secretKey) {
-				await storeSecret(visibleWebview.controller.context, secretKey, apiKey)
+
+			if (typedProvider === "vertex") {
+				await updateGlobalState(visibleWebview.controller.context, "vertexProjectId", apiKey)
+				if (vertexRegion) {
+					await updateGlobalState(visibleWebview.controller.context, "vertexRegion", vertexRegion)
+				}
 				await updateGlobalState(visibleWebview.controller.context, "planModeApiProvider", typedProvider)
 				await updateGlobalState(visibleWebview.controller.context, "actModeApiProvider", typedProvider)
 				await updateGlobalState(visibleWebview.controller.context, "planModeApiModelId", model)
 				await updateGlobalState(visibleWebview.controller.context, "actModeApiModelId", model)
+				await updateGlobalState(visibleWebview.controller.context, "welcomeViewCompleted", true)
 				await visibleWebview.controller.postStateToWebview()
-				Logger.log("API configuration updated successfully.")
+				Logger.log(chalk.green("API configuration for Vertex updated successfully."))
 			} else {
-				Logger.log(
-					`Provider "${typedProvider}" does not have a corresponding secret key defined. Skipping config update.`,
-				)
+				const providerToSecretKey: Partial<Record<ApiProvider, SecretKey>> = {
+					anthropic: "apiKey",
+					openrouter: "openRouterApiKey",
+					openai: "openAiApiKey",
+					gemini: "geminiApiKey",
+					"openai-native": "openAiNativeApiKey",
+					deepseek: "deepSeekApiKey",
+					requesty: "requestyApiKey",
+					together: "togetherApiKey",
+					fireworks: "fireworksApiKey",
+					qwen: "qwenApiKey",
+					doubao: "doubaoApiKey",
+					mistral: "mistralApiKey",
+					litellm: "liteLlmApiKey",
+					asksage: "asksageApiKey",
+					xai: "xaiApiKey",
+					moonshot: "moonshotApiKey",
+					huggingface: "huggingFaceApiKey",
+					nebius: "nebiusApiKey",
+					sambanova: "sambanovaApiKey",
+					cerebras: "cerebrasApiKey",
+					groq: "groqApiKey",
+					bedrock: "awsBedrockApiKey",
+					cline: "clineAccountId",
+				}
+				const secretKey = providerToSecretKey[typedProvider]
+				if (secretKey) {
+					await storeSecret(visibleWebview.controller.context, secretKey, apiKey)
+					await updateGlobalState(visibleWebview.controller.context, "planModeApiProvider", typedProvider)
+					await updateGlobalState(visibleWebview.controller.context, "actModeApiProvider", typedProvider)
+					await updateGlobalState(visibleWebview.controller.context, "planModeApiModelId", model)
+					await updateGlobalState(visibleWebview.controller.context, "actModeApiModelId", model)
+					await updateGlobalState(visibleWebview.controller.context, "welcomeViewCompleted", true)
+					await visibleWebview.controller.postStateToWebview()
+					Logger.log(chalk.green("API configuration updated successfully."))
+				} else {
+					Logger.log(
+						chalk.yellow(
+							`Provider "${typedProvider}" does not have a corresponding secret key defined. Skipping config update.`,
+						),
+					)
+				}
 			}
 		} else {
-			Logger.log("Credentials not provided, using existing configuration.")
+			Logger.log(chalk.yellow("Credentials not provided, using existing configuration."))
 		}
 
 		const { chatSettings } = await visibleWebview.controller.getStateToPostToWebview()
@@ -347,12 +372,12 @@ async function handleStartTask(payload: any) {
 
 		const taskId = await visibleWebview.controller.initTask(task)
 
-		Logger.log(`Task initiated with ID: ${taskId}`)
+		Logger.log(chalk.green(`Task initiated with ID: ${taskId}`))
 		if (clientSocket) {
 			clientSocket.send(JSON.stringify({ type: "taskStarted", payload: { taskId } }))
 		}
 	} catch (error) {
-		Logger.log(`Error initiating task: ${error}`)
+		Logger.log(chalk.red(`Error initiating task: ${error}`))
 		if (clientSocket) {
 			clientSocket.send(JSON.stringify({ type: "error", payload: { message: `Failed to initiate task: ${error}` } }))
 		}
@@ -369,9 +394,9 @@ async function handleAskResponse(payload: any) {
 				images,
 			}),
 		)
-		Logger.log(`Forwarded askResponse to Cline: ${responseType}`)
+		Logger.log(chalk.blue(`Forwarded askResponse to Cline: ${responseType}`))
 	} catch (error) {
-		Logger.log(`Error forwarding askResponse: ${error}`)
+		Logger.log(chalk.red(`Error forwarding askResponse: ${error}`))
 	}
 }
 
@@ -394,6 +419,6 @@ async function handleFollowUp(payload: any) {
 		return
 	}
 
-	Logger.log(`Continuing task ${taskId} with follow-up: ${task}`)
+	Logger.log(chalk.cyan(`Continuing task ${taskId} with follow-up: ${task}`))
 	await visibleWebview.controller.followUpTask(task)
 }

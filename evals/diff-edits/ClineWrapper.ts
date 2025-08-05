@@ -31,7 +31,7 @@ const diffEditingFunctions: Record<string, ConstructNewFileContentFn> = {
 
 import { TestInput, TestResult, ExtractedToolCall } from "./types"
 import { log } from "./helpers"
-export { TestInput, TestResult, ExtractedToolCall }
+export type { TestInput, TestResult, ExtractedToolCall }
 
 interface StreamResult {
 	assistantMessage: string
@@ -192,9 +192,9 @@ export async function runSingleEvaluation(input: TestInput): Promise<TestResult>
 
 		const options: ApiHandlerOptions = {
 			openRouterApiKey: apiKey,
-			openRouterModelId: modelId,
-			thinkingBudgetTokens: thinkingBudgetTokens,
-			openRouterModelInfo: {
+			actModeOpenRouterModelId: modelId,
+			actModeThinkingBudgetTokens: thinkingBudgetTokens,
+			actModeOpenRouterModelInfo: {
 				maxTokens: 10_000,
 				contextWindow: 1_000_000,
 				supportsImages: true,

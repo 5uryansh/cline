@@ -946,7 +946,7 @@ async function main() {
 	const maxConcurrency = parseInt(options.maxConcurrency, 10);
 
 	// Parse model IDs from comma-separated string
-	const modelIds = options.modelIds ? options.modelIds.split(',').map(id => id.trim()) : [];
+  const modelIds = options.modelIds ? options.modelIds.split(',').map((id: string) => id.trim()) : [];
 	if (modelIds.length === 0) {
 		console.error("Error: --model-ids is required and must contain at least one model ID");
 		process.exit(1);
@@ -1055,7 +1055,7 @@ async function main() {
 		await runner.initializeMultiModelRun(processedEligibleCasesForRun, options.systemPromptName, options.parsingFunction, options.diffEditFunction, runDescription, isVerbose);
 
 		// Create a global task queue
-		const globalTaskQueue: EvaluationTask[] = modelIds.flatMap(modelId => 
+  const globalTaskQueue: EvaluationTask[] = modelIds.flatMap((modelId: string) =>
 			processedEligibleCasesForRun.map(testCase => ({
 				modelId,
 				testCase,
